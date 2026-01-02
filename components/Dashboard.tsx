@@ -60,15 +60,15 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
           <p className="text-sm font-semibold text-slate-700">Hidratação</p>
           <div className="flex flex-col gap-2 w-full">
             <div className="flex gap-2 w-full">
-              <button onClick={() => logWater(250)} className={`flex-1 py-2 ${activeUser === 'Thiago' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-rose-500 hover:bg-rose-600'} text-white rounded-xl text-xs font-bold transition-colors`}>+250ml</button>
-              <button onClick={() => logWater(500)} className={`flex-1 py-2 ${activeUser === 'Thiago' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-rose-500 hover:bg-rose-600'} text-white rounded-xl text-xs font-bold transition-colors`}>+500ml</button>
+              <button onClick={() => logWater(100)} className={`flex-1 py-2 ${activeUser === 'Thiago' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-rose-500 hover:bg-rose-600'} text-white rounded-xl text-xs font-bold transition-colors`}>+100ml</button>
+              <button onClick={() => logWater(400)} className={`flex-1 py-2 ${activeUser === 'Thiago' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-rose-500 hover:bg-rose-600'} text-white rounded-xl text-xs font-bold transition-colors`}>+400ml</button>
             </div>
             <button 
-              onClick={() => logWater(-250)} 
+              onClick={() => logWater(-100)} 
               className="w-full py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-1"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-              Remover 250ml
+              Remover 100ml
             </button>
           </div>
         </div>

@@ -14,7 +14,9 @@ interface Props {
 
 const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercise, removeMeal, toggleMealConsumed }) => {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  
+  // Usar toLocaleDateString com en-CA para garantir formato YYYY-MM-DD local (Brasília)
+  const todayStr = now.toLocaleDateString('en-CA');
   
   // Format current date nicely
   const formattedDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });

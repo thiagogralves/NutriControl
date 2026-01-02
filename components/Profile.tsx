@@ -12,6 +12,7 @@ interface Props {
 
 const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, removeExercise }) => {
   const [newWeight, setNewWeight] = useState('');
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false);
   
   const userWeights = state.weightLogs
     .filter(l => l.userId === activeUser)
@@ -24,10 +25,20 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
   const currentWeight = userWeights[0]?.weight || '--';
   const exerciseCount = exerciseLogs.length;
 
+  const copyAppLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShowCopyFeedback(true);
+    setTimeout(() => setShowCopyFeedback(false), 3000);
+  };
+
+  const accentColor = activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500';
+  const accentText = activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600';
+  const accentLight = activeUser === 'Thiago' ? 'bg-sky-100' : 'bg-rose-100';
+
   return (
     <div className="space-y-6">
       <div className="text-center py-6">
-        <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center mb-4 border-4 border-white shadow-lg">
+        <div className={`w-24 h-24 ${accentLight} ${accentText} rounded-full mx-auto flex items-center justify-center mb-4 border-4 border-white shadow-lg`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
@@ -35,6 +46,17 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
         <h2 className="text-2xl font-bold text-slate-800">{activeUser}</h2>
         <p className="text-sm text-slate-400">Objetivo: Manter Foco & Saúde</p>
       </div>
+
+      {/* Botão de Compartilhar Link */}
+      <button 
+        onClick={copyAppLink}
+        className={`w-full py-4 ${accentLight} ${accentText} rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 mb-4`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100-2.684 3 3 0 000 2.684zm0 9a3 3 0 100-2.684 3 3 0 000 2.684z" />
+        </svg>
+        {showCopyFeedback ? 'Link Copiado!' : 'Copiar Link para Marcela'}
+      </button>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
@@ -65,7 +87,7 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
                 setNewWeight('');
               }
             }}
-            className="bg-emerald-500 text-white px-6 rounded-xl font-bold hover:bg-emerald-600 transition-colors"
+            className={`${accentColor} text-white px-6 rounded-xl font-bold hover:opacity-90 transition-colors`}
           >
             Salvar
           </button>
@@ -90,7 +112,6 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
                   <button 
                     onClick={() => removeExercise(log.date)}
                     className="p-1 text-slate-300 hover:text-red-500 transition-colors"
-                    title="Remover registro"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>

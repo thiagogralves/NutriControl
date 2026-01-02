@@ -2,13 +2,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, AppState, Meal, MealTime, WeightLog, WaterLog, ExerciseLog, ShoppingItem } from './types';
 import { estimateCalories, suggestShoppingList } from './geminiService';
+import { syncState, saveFullState } from './firebaseService';
 import Dashboard from './components/Dashboard';
 import WeeklyTable from './components/WeeklyTable';
 import ShoppingList from './components/ShoppingList';
 import Profile from './components/Profile';
 import AddMealModal from './components/AddMealModal';
-
-const STORAGE_KEY = 'nutricontrol_v1_data';
 
 const App: React.FC = () => {
   const [activeUser, setActiveUser] = useState<User>('Thiago');
@@ -16,72 +15,75 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<Meal | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isSynced, setIsSynced] = useState(false);
 
-  // Initial State
-  const [state, setState] = useState<AppState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {
-      meals: [],
-      weightLogs: [],
-      waterLogs: [],
-      exerciseLogs: [],
-      shoppingLists: []
-    };
+  const [state, setState] = useState<AppState>({
+    meals: [],
+    weightLogs: [],
+    waterLogs: [],
+    exerciseLogs: [],
+    shoppingLists: []
   });
 
-  // Persistence
+  // Sincronização em tempo real com Firebase
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    const unsubscribe = syncState((newState) => {
+      setState(newState);
+      setIsInitialLoad(false);
+      setIsSynced(true);
+      // Feedback visual de sincronização
+      setTimeout(() => setIsSynced(false), 2000);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Função auxiliar para atualizar o Firebase sempre que o estado mudar localmente
+  const updateRemoteState = async (newState: AppState) => {
+    setState(newState);
+    await saveFullState(newState);
+  };
 
   const saveMeal = async (mealData: Omit<Meal, 'id' | 'consumed'>, id?: string) => {
     setLoading(true);
-    
     let finalCalories = mealData.calories;
-    
-    // If calories are not provided (0 or undefined), ask the AI
     if (!finalCalories || finalCalories <= 0) {
       finalCalories = await estimateCalories(mealData.food, mealData.amount);
     }
     
-    setState(prev => {
-      if (id) {
-        // Edit existing
-        return {
-          ...prev,
-          meals: prev.meals.map(m => m.id === id ? { ...m, ...mealData, calories: finalCalories } : m)
-        };
-      } else {
-        // Create new
-        const meal: Meal = {
-          ...mealData,
-          id: Math.random().toString(36).substr(2, 9),
-          calories: finalCalories,
-          consumed: false
-        };
-        return {
-          ...prev,
-          meals: [...prev.meals, meal]
-        };
-      }
-    });
+    const newState = { ...state };
+    if (id) {
+      newState.meals = state.meals.map(m => m.id === id ? { ...m, ...mealData, calories: finalCalories } : m);
+    } else {
+      const meal: Meal = {
+        ...mealData,
+        id: Math.random().toString(36).substr(2, 9),
+        calories: finalCalories,
+        consumed: false
+      };
+      newState.meals = [...state.meals, meal];
+    }
+
+    await updateRemoteState(newState);
     setLoading(false);
     setIsModalOpen(false);
     setEditingMeal(undefined);
   };
 
-  const removeMeal = (id: string) => {
-    setState(prev => ({
-      ...prev,
-      meals: prev.meals.filter(m => m.id !== id)
-    }));
+  const removeMeal = async (id: string) => {
+    const newState = {
+      ...state,
+      meals: state.meals.filter(m => m.id !== id)
+    };
+    await updateRemoteState(newState);
   };
 
-  const toggleMealConsumed = (id: string) => {
-    setState(prev => ({
-      ...prev,
-      meals: prev.meals.map(m => m.id === id ? { ...m, consumed: !m.consumed } : m)
-    }));
+  const toggleMealConsumed = async (id: string) => {
+    const newState = {
+      ...state,
+      meals: state.meals.map(m => m.id === id ? { ...m, consumed: !m.consumed } : m)
+    };
+    await updateRemoteState(newState);
   };
 
   const handleEditMeal = (meal: Meal) => {
@@ -89,70 +91,52 @@ const App: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const toggleExercise = (date: string) => {
-    setState(prev => {
-      const exists = prev.exerciseLogs.find(l => l.date === date && l.userId === activeUser);
-      if (exists) {
-        return {
-          ...prev,
-          exerciseLogs: prev.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser))
-        };
-      }
-      return {
-        ...prev,
-        exerciseLogs: [...prev.exerciseLogs, { userId: activeUser, date, completed: true }]
-      };
-    });
+  const toggleExercise = async (date: string) => {
+    const exists = state.exerciseLogs.find(l => l.date === date && l.userId === activeUser);
+    let newLogs;
+    if (exists) {
+      newLogs = state.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser));
+    } else {
+      newLogs = [...state.exerciseLogs, { userId: activeUser, date, completed: true }];
+    }
+    await updateRemoteState({ ...state, exerciseLogs: newLogs });
   };
 
-  const removeExercise = (date: string) => {
-    setState(prev => ({
-      ...prev,
-      exerciseLogs: prev.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser))
-    }));
+  const removeExercise = async (date: string) => {
+    const newLogs = state.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser));
+    await updateRemoteState({ ...state, exerciseLogs: newLogs });
   };
 
-  const logWater = (amount: number) => {
+  const logWater = async (amount: number) => {
     const date = new Date().toISOString().split('T')[0];
-    setState(prev => {
-      const exists = prev.waterLogs.find(l => l.date === date && l.userId === activeUser);
-      if (exists) {
-        return {
-          ...prev,
-          waterLogs: prev.waterLogs.map(l => 
-            l.date === date && l.userId === activeUser ? { ...l, amountMl: Math.max(0, l.amountMl + amount) } : l
-          )
-        };
-      }
-      return {
-        ...prev,
-        waterLogs: [...prev.waterLogs, { userId: activeUser, date, amountMl: Math.max(0, amount) }]
-      };
-    });
+    const exists = state.waterLogs.find(l => l.date === date && l.userId === activeUser);
+    let newWaterLogs;
+    if (exists) {
+      newWaterLogs = state.waterLogs.map(l => 
+        l.date === date && l.userId === activeUser ? { ...l, amountMl: Math.max(0, l.amountMl + amount) } : l
+      );
+    } else {
+      newWaterLogs = [...state.waterLogs, { userId: activeUser, date, amountMl: Math.max(0, amount) }];
+    }
+    await updateRemoteState({ ...state, waterLogs: newWaterLogs });
   };
 
-  const logWeight = (weight: number) => {
+  const logWeight = async (weight: number) => {
     const date = new Date().toISOString().split('T')[0];
-    setState(prev => ({
-      ...prev,
-      weightLogs: [...prev.weightLogs, { userId: activeUser, date, weight }]
-    }));
+    const newWeights = [...state.weightLogs, { userId: activeUser, date, weight }];
+    await updateRemoteState({ ...state, weightLogs: newWeights });
   };
 
-  const removeWeight = (date: string) => {
-    setState(prev => ({
-      ...prev,
-      weightLogs: prev.weightLogs.filter(l => !(l.date === date && l.userId === activeUser))
-    }));
+  const removeWeight = async (date: string) => {
+    const newWeights = state.weightLogs.filter(l => !(l.date === date && l.userId === activeUser));
+    await updateRemoteState({ ...state, weightLogs: newWeights });
   };
 
-  const toggleShoppingItem = (id: string) => {
-    setState(prev => ({
-      ...prev,
-      shoppingLists: prev.shoppingLists.map(item => 
-        item.id === id ? { ...item, bought: !item.bought } : item
-      )
-    }));
+  const toggleShoppingItem = async (id: string) => {
+    const newShopping = state.shoppingLists.map(item => 
+      item.id === id ? { ...item, bought: !item.bought } : item
+    );
+    await updateRemoteState({ ...state, shoppingLists: newShopping });
   };
 
   const generateShoppingList = async (week: number) => {
@@ -168,21 +152,42 @@ const App: React.FC = () => {
       bought: false
     }));
 
-    setState(prev => ({
-      ...prev,
-      shoppingLists: [...prev.shoppingLists, ...newItems]
-    }));
+    await updateRemoteState({
+      ...state,
+      shoppingLists: [...state.shoppingLists, ...newItems]
+    });
     setLoading(false);
   };
 
   const bgColor = activeUser === 'Thiago' ? 'bg-sky-50' : 'bg-rose-50';
+
+  if (isInitialLoad) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${bgColor}`}>
+        <div className="text-center space-y-4">
+          <div className={`w-12 h-12 border-4 ${activeUser === 'Thiago' ? 'border-sky-500' : 'border-rose-500'} border-t-transparent rounded-full animate-spin mx-auto`}></div>
+          <p className="text-slate-500 font-medium animate-pulse">Conectando ao banco de dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen pb-24 max-w-md mx-auto relative shadow-xl overflow-hidden transition-colors duration-700 ${bgColor}`}>
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md px-6 pt-8 pb-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NutriControl</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NutriControl</h1>
+            {isSynced && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-full text-[8px] font-bold uppercase animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Sincronizado
+              </div>
+            )}
+          </div>
           <p className="text-sm text-slate-500">Olá, <span className={`font-semibold ${activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600'}`}>{activeUser}</span></p>
         </div>
         <div className="flex gap-2">

@@ -19,6 +19,15 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
   const weeks = Array.from(new Set(state.meals.map(m => m.weekNumber))).sort((a, b) => b - a);
   const displayWeeks = weeks.length > 0 ? weeks : [1];
 
+  const getDayDateString = (week: number, dayIdx: number) => {
+    // 05/01/2026 is a Monday (Day 0 of Week 1)
+    const baseDate = new Date(2026, 0, 5); 
+    const daysToAdd = (week - 1) * 7 + dayIdx;
+    const targetDate = new Date(baseDate);
+    targetDate.setDate(baseDate.getDate() + daysToAdd);
+    return targetDate.toLocaleDateString('pt-BR');
+  };
+
   const getMealsForSlot = (day: number, time: MealTime): Meal[] => 
     state.meals.filter(m => m.userId === activeUser && m.weekNumber === selectedWeek && m.dayOfWeek === day && m.time === time);
 
@@ -42,13 +51,17 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
       <div className="space-y-8 overflow-x-hidden pb-10">
         {DAYS.map((dayName, dayIdx) => {
           const prevDayIdx = dayIdx === 0 ? 4 : dayIdx - 1;
-          const copyLabel = dayIdx === 0 ? 'Sexta' : DAYS[prevDayIdx];
+          const copyLabel = dayIdx === 0 ? 'Sexta da sem. ant.' : DAYS[prevDayIdx];
+          const dateStr = getDayDateString(selectedWeek, dayIdx);
           
           return (
             <div key={dayName} className="relative">
               <div className="flex items-center gap-3 mb-4">
-                <span className={`w-8 h-8 rounded-full ${accentBg} text-white flex items-center justify-center font-bold text-xs shrink-0`}>{dayIdx + 1}</span>
-                <h3 className="text-base font-bold text-slate-700 shrink-0">{dayName}</h3>
+                <span className={`w-8 h-8 rounded-full ${accentBg} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm`}>{dayIdx + 1}</span>
+                <div className="flex flex-col shrink-0">
+                  <h3 className="text-base font-bold text-slate-700 leading-tight">{dayName}</h3>
+                  <span className="text-[10px] text-slate-400 font-medium">{dateStr}</span>
+                </div>
                 
                 <button 
                   onClick={async () => {
@@ -65,7 +78,7 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
                 </button>
 
                 <div className="h-px flex-1 bg-slate-100"></div>
-                <span className={`text-[10px] font-bold ${accentColor} shrink-0`}>
+                <span className={`text-[10px] font-bold ${accentColor} shrink-0 bg-white px-2 py-1 rounded-lg border border-slate-50`}>
                   {state.meals
                     .filter(m => m.userId === activeUser && m.weekNumber === selectedWeek && m.dayOfWeek === dayIdx)
                     .reduce((acc, m) => acc + m.calories, 0)} kcal

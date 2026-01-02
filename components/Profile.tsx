@@ -8,19 +8,24 @@ interface Props {
   logWeight: (weight: number) => void;
   removeWeight: (date: string) => void;
   removeExercise: (date: string) => void;
+  removeWaterLog: (date: string) => void;
 }
 
-const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, removeExercise }) => {
+const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, removeExercise, removeWaterLog }) => {
   const [newWeight, setNewWeight] = useState('');
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
   
   const userWeights = state.weightLogs
     .filter(l => l.userId === activeUser)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const exerciseLogs = state.exerciseLogs
     .filter(l => l.userId === activeUser && l.completed)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const waterLogs = state.waterLogs
+    .filter(l => l.userId === activeUser)
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const currentWeight = userWeights[0]?.weight || '--';
   const exerciseCount = exerciseLogs.length;
@@ -34,6 +39,11 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
   const accentColor = activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500';
   const accentText = activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600';
   const accentLight = activeUser === 'Thiago' ? 'bg-sky-100' : 'bg-rose-100';
+
+  const formatDateBR = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn pb-10">
@@ -97,6 +107,7 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
         </div>
       </div>
 
+      {/* Histórico de Treinos */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -108,11 +119,39 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
           ) : (
             exerciseLogs.map((log, idx) => (
               <div key={idx} className="flex justify-between items-center text-sm py-3 group border-b border-slate-50 last:border-none">
-                <span className="text-slate-500 font-medium">{new Date(log.date).toLocaleDateString('pt-BR')}</span>
+                <span className="text-slate-500 font-medium">{formatDateBR(log.date)}</span>
                 <div className="flex items-center gap-3">
                   <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Treinado</span>
                   <button 
                     onClick={() => removeExercise(log.date)}
+                    className="p-1 text-slate-300 hover:text-red-500"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* NOVO: Histórico de Hidratação */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+          Histórico de Hidratação
+        </h3>
+        <div className="space-y-3 max-h-48 overflow-y-auto hide-scrollbar">
+          {waterLogs.length === 0 ? (
+            <p className="text-slate-300 text-xs italic text-center py-2">Nenhum registro de água.</p>
+          ) : (
+            waterLogs.map((log, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm py-3 group border-b border-slate-50 last:border-none">
+                <span className="text-slate-500 font-medium">{formatDateBR(log.date)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="bg-sky-100 text-sky-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{log.amountMl} ml</span>
+                  <button 
+                    onClick={() => removeWaterLog(log.date)}
                     className="p-1 text-slate-300 hover:text-red-500"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -132,7 +171,7 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
           ) : (
             userWeights.map((log, idx) => (
               <div key={idx} className="flex justify-between items-center text-sm py-3 border-b border-slate-50 last:border-none">
-                <span className="text-slate-500">{new Date(log.date).toLocaleDateString('pt-BR')}</span>
+                <span className="text-slate-500">{formatDateBR(log.date)}</span>
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-slate-800">{log.weight} kg</span>
                   <button 

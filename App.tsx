@@ -44,6 +44,13 @@ const App: React.FC = () => {
     }
   };
 
+  // Helper para pegar a data atual no formato YYYY-MM-DD no fuso local (Brasília)
+  const getLocalDate = () => {
+    const now = new Date();
+    // Ajuste simples para compensar fuso caso necessário, mas toLocaleDateString com en-CA já retorna YYYY-MM-DD local
+    return now.toLocaleDateString('en-CA');
+  };
+
   const saveMeal = async (mealData: Omit<Meal, 'id' | 'consumed'>, id?: string) => {
     setLoading(true);
     let finalCalories = mealData.calories;
@@ -75,8 +82,6 @@ const App: React.FC = () => {
   };
 
   const copyDayMenu = async (toDay: number, week: number) => {
-    // Se for Segunda (0), copia da Sexta (4) da semana anterior (week - 1)
-    // Caso contrário, copia do dia anterior (toDay - 1) da mesma semana
     const fromDay = toDay === 0 ? 4 : toDay - 1;
     const fromWeek = toDay === 0 ? week - 1 : week;
 
@@ -98,7 +103,6 @@ const App: React.FC = () => {
         return prev;
       }
 
-      // Remove as refeições que já existem no dia de destino
       const otherMeals = prev.meals.filter(m => 
         !(m.userId === activeUser && m.weekNumber === week && m.dayOfWeek === toDay)
       );
@@ -169,7 +173,7 @@ const App: React.FC = () => {
   };
 
   const logWater = async (amount: number) => {
-    const date = new Date().toISOString().split('T')[0];
+    const date = getLocalDate();
     setState(prev => {
       const exists = prev.waterLogs.find(l => l.date === date && l.userId === activeUser);
       let newWaterLogs;
@@ -180,14 +184,23 @@ const App: React.FC = () => {
       } else {
         newWaterLogs = [...prev.waterLogs, { userId: activeUser, date, amountMl: Math.max(0, amount) }];
       }
+      // Fixed: changed newWaterWaterLogs to newWaterLogs
       const newState = { ...prev, waterLogs: newWaterLogs };
       persist(newState);
       return newState;
     });
   };
 
+  const removeWaterLog = async (date: string) => {
+    setState(prev => {
+      const newState = { ...prev, waterLogs: prev.waterLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
+      persist(newState);
+      return newState;
+    });
+  };
+
   const logWeight = async (weight: number) => {
-    const date = new Date().toISOString().split('T')[0];
+    const date = getLocalDate();
     setState(prev => {
       const newState = { ...prev, weightLogs: [...prev.weightLogs, { userId: activeUser, date, weight }] };
       persist(newState);
@@ -313,6 +326,7 @@ const App: React.FC = () => {
             logWeight={logWeight}
             removeWeight={removeWeight}
             removeExercise={removeExercise}
+            removeWaterLog={removeWaterLog}
           />
         )}
       </main>

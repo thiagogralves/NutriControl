@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { User, AppState, Meal, MealTime, WeightLog, WaterLog, ExerciseLog, ShoppingItem } from './types';
+import React, { useState, useEffect } from 'react';
+import { User, AppState, Meal, MealTime, ShoppingItem } from './types';
 import { estimateCalories, suggestShoppingList } from './geminiService';
 import { syncState, saveFullState } from './firebaseService';
 import Dashboard from './components/Dashboard';
@@ -26,22 +26,22 @@ const App: React.FC = () => {
     shoppingLists: []
   });
 
-  // Sincronização em tempo real com Firebase
   useEffect(() => {
     const unsubscribe = syncState((newState) => {
       setState(newState);
       setIsInitialLoad(false);
       setIsSynced(true);
-      // Feedback visual de sincronização
       setTimeout(() => setIsSynced(false), 2000);
     });
     return () => unsubscribe();
   }, []);
 
-  // Função auxiliar para atualizar o Firebase sempre que o estado mudar localmente
-  const updateRemoteState = async (newState: AppState) => {
-    setState(newState);
-    await saveFullState(newState);
+  const persist = async (newState: AppState) => {
+    try {
+      await saveFullState(newState);
+    } catch (error) {
+      console.error("Erro ao sincronizar com Firebase:", error);
+    }
   };
 
   const saveMeal = async (mealData: Omit<Meal, 'id' | 'consumed'>, id?: string) => {
@@ -51,9 +51,9 @@ const App: React.FC = () => {
       finalCalories = await estimateCalories(mealData.food, mealData.amount);
     }
     
-    const newState = { ...state };
+    let newMeals;
     if (id) {
-      newState.meals = state.meals.map(m => m.id === id ? { ...m, ...mealData, calories: finalCalories } : m);
+      newMeals = state.meals.map(m => m.id === id ? { ...m, ...mealData, calories: finalCalories } : m);
     } else {
       const meal: Meal = {
         ...mealData,
@@ -61,21 +61,66 @@ const App: React.FC = () => {
         calories: finalCalories,
         consumed: false
       };
-      newState.meals = [...state.meals, meal];
+      newMeals = [...state.meals, meal];
     }
 
-    await updateRemoteState(newState);
+    const newState = { ...state, meals: newMeals };
+    setState(newState);
+    await persist(newState);
+
     setLoading(false);
     setIsModalOpen(false);
     setEditingMeal(undefined);
   };
 
-  const removeMeal = async (id: string) => {
+  const copyDayMenu = async (toDay: number, week: number) => {
+    const fromDay = toDay === 0 ? 4 : toDay - 1;
+    
+    let sourceMeals = state.meals.filter(m => 
+      m.userId === activeUser && 
+      m.weekNumber === week && 
+      m.dayOfWeek === fromDay
+    );
+
+    if (toDay === 0 && sourceMeals.length === 0 && week > 1) {
+      sourceMeals = state.meals.filter(m => 
+        m.userId === activeUser && 
+        m.weekNumber === week - 1 && 
+        m.dayOfWeek === fromDay
+      );
+    }
+
+    if (sourceMeals.length === 0) {
+      alert("Não encontramos nada registrado no dia anterior para copiar.");
+      return;
+    }
+
+    const otherMeals = state.meals.filter(m => 
+      !(m.userId === activeUser && m.weekNumber === week && m.dayOfWeek === toDay)
+    );
+
+    const duplicatedMeals = sourceMeals.map(m => ({
+      ...m,
+      id: Math.random().toString(36).substr(2, 9),
+      dayOfWeek: toDay,
+      weekNumber: week,
+      consumed: false
+    }));
+
     const newState = {
       ...state,
-      meals: state.meals.filter(m => m.id !== id)
+      meals: [...otherMeals, ...duplicatedMeals]
     };
-    await updateRemoteState(newState);
+    
+    setState(newState);
+    await persist(newState);
+    alert(`${duplicatedMeals.length} refeições copiadas com sucesso!`);
+  };
+
+  const removeMeal = async (id: string) => {
+    const newState = { ...state, meals: state.meals.filter(m => m.id !== id) };
+    setState(newState);
+    await persist(newState);
   };
 
   const toggleMealConsumed = async (id: string) => {
@@ -83,7 +128,8 @@ const App: React.FC = () => {
       ...state,
       meals: state.meals.map(m => m.id === id ? { ...m, consumed: !m.consumed } : m)
     };
-    await updateRemoteState(newState);
+    setState(newState);
+    await persist(newState);
   };
 
   const handleEditMeal = (meal: Meal) => {
@@ -99,12 +145,15 @@ const App: React.FC = () => {
     } else {
       newLogs = [...state.exerciseLogs, { userId: activeUser, date, completed: true }];
     }
-    await updateRemoteState({ ...state, exerciseLogs: newLogs });
+    const newState = { ...state, exerciseLogs: newLogs };
+    setState(newState);
+    await persist(newState);
   };
 
   const removeExercise = async (date: string) => {
-    const newLogs = state.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser));
-    await updateRemoteState({ ...state, exerciseLogs: newLogs });
+    const newState = { ...state, exerciseLogs: state.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
+    setState(newState);
+    await persist(newState);
   };
 
   const logWater = async (amount: number) => {
@@ -118,25 +167,31 @@ const App: React.FC = () => {
     } else {
       newWaterLogs = [...state.waterLogs, { userId: activeUser, date, amountMl: Math.max(0, amount) }];
     }
-    await updateRemoteState({ ...state, waterLogs: newWaterLogs });
+    const newState = { ...state, waterLogs: newWaterLogs };
+    setState(newState);
+    await persist(newState);
   };
 
   const logWeight = async (weight: number) => {
     const date = new Date().toISOString().split('T')[0];
-    const newWeights = [...state.weightLogs, { userId: activeUser, date, weight }];
-    await updateRemoteState({ ...state, weightLogs: newWeights });
+    const newState = { ...state, weightLogs: [...state.weightLogs, { userId: activeUser, date, weight }] };
+    setState(newState);
+    await persist(newState);
   };
 
   const removeWeight = async (date: string) => {
-    const newWeights = state.weightLogs.filter(l => !(l.date === date && l.userId === activeUser));
-    await updateRemoteState({ ...state, weightLogs: newWeights });
+    const newState = { ...state, weightLogs: state.weightLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
+    setState(newState);
+    await persist(newState);
   };
 
   const toggleShoppingItem = async (id: string) => {
-    const newShopping = state.shoppingLists.map(item => 
-      item.id === id ? { ...item, bought: !item.bought } : item
-    );
-    await updateRemoteState({ ...state, shoppingLists: newShopping });
+    const newState = {
+      ...state,
+      shoppingLists: state.shoppingLists.map(item => item.id === id ? { ...item, bought: !item.bought } : item)
+    };
+    setState(newState);
+    await persist(newState);
   };
 
   const generateShoppingList = async (week: number) => {
@@ -152,10 +207,12 @@ const App: React.FC = () => {
       bought: false
     }));
 
-    await updateRemoteState({
+    const newState = {
       ...state,
-      shoppingLists: [...state.shoppingLists, ...newItems]
-    });
+      shoppingLists: [...state.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), ...newItems]
+    };
+    setState(newState);
+    await persist(newState);
     setLoading(false);
   };
 
@@ -166,7 +223,7 @@ const App: React.FC = () => {
       <div className={`min-h-screen flex items-center justify-center ${bgColor}`}>
         <div className="text-center space-y-4">
           <div className={`w-12 h-12 border-4 ${activeUser === 'Thiago' ? 'border-sky-500' : 'border-rose-500'} border-t-transparent rounded-full animate-spin mx-auto`}></div>
-          <p className="text-slate-500 font-medium animate-pulse">Conectando ao banco de dados...</p>
+          <p className="text-slate-500 font-medium animate-pulse">Sincronizando NutriControl...</p>
         </div>
       </div>
     );
@@ -174,7 +231,6 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen pb-24 max-w-md mx-auto relative shadow-xl overflow-hidden transition-colors duration-700 ${bgColor}`}>
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-md px-6 pt-8 pb-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
         <div>
           <div className="flex items-center gap-2">
@@ -184,7 +240,7 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                Sincronizado
+                OK
               </div>
             )}
           </div>
@@ -202,7 +258,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="px-4 py-6">
         {currentView === 'dashboard' && (
           <Dashboard 
@@ -221,6 +276,7 @@ const App: React.FC = () => {
             removeMeal={removeMeal} 
             toggleMealConsumed={toggleMealConsumed}
             onEditMeal={handleEditMeal}
+            copyDayMenu={copyDayMenu}
           />
         )}
         {currentView === 'shopping' && (
@@ -242,12 +298,10 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 py-4 flex justify-between items-center max-w-md mx-auto z-20">
         <NavButton active={currentView === 'dashboard'} activeUser={activeUser} onClick={() => setCurrentView('dashboard')} icon={<DashboardIcon />} label="Home" />
         <NavButton active={currentView === 'table'} activeUser={activeUser} onClick={() => setCurrentView('table')} icon={<TableIcon />} label="Menu" />
         
-        {/* Floating Add Button */}
         <button 
           onClick={() => { setEditingMeal(undefined); setIsModalOpen(true); }}
           className={`${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white p-4 rounded-full shadow-lg -mt-12 border-4 border-slate-50 hover:opacity-90 transition-transform active:scale-95`}

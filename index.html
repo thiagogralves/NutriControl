@@ -6,7 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#f8fafc">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NutriControl">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/512/restaurant.png">
+    <link rel="icon" type="image/png" href="https://img.icons8.com/fluency/96/restaurant.png">
+    
     <title>NutriControl</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -24,6 +29,12 @@
                 font-size: 16px !important;
             }
         }
+
+        /* Animações suaves */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .animate-slideUp { animation: slideUp 0.4s ease-out; }
     </style>
 <script type="importmap">
 {

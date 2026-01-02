@@ -29,21 +29,32 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
 };
 
 export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
+  if (meals.length === 0) return [];
+  
   try {
     const mealList = meals.map(m => `${m.amount} de ${m.food}`).join(", ");
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Com base nestas refeições: [${mealList}], gere uma lista simplificada de itens de supermercado necessários. Retorne uma lista de strings.`,
+      contents: `Com base nesta lista de alimentos consumidos na semana: [${mealList}], gere uma lista de compras consolidada para o supermercado. Agrupe itens semelhantes (ex: se houver ovos em várias refeições, coloque apenas 'Ovos'). Retorne um objeto JSON com uma propriedade 'items' contendo o array de strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
+          type: Type.OBJECT,
+          properties: {
+            items: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["items"]
         }
       }
     });
-    return JSON.parse(response.text || "[]");
+    
+    const data = JSON.parse(response.text || '{"items": []}');
+    return data.items || [];
   } catch (error) {
+    console.error("Erro ao sugerir lista de compras:", error);
     return [];
   }
 };

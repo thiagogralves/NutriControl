@@ -1,0 +1,7 @@
+{
+  "name": "NutriControl - Thiago & Marcela",
+  "description": "Aplicativo de controle nutricional semanal com cálculo de calorias via IA, lista de compras automática, rastreamento de peso, exercícios e consumo de água.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

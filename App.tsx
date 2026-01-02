@@ -51,22 +51,23 @@ const App: React.FC = () => {
       finalCalories = await estimateCalories(mealData.food, mealData.amount);
     }
     
-    let newMeals;
-    if (id) {
-      newMeals = state.meals.map(m => m.id === id ? { ...m, ...mealData, calories: finalCalories } : m);
-    } else {
-      const meal: Meal = {
-        ...mealData,
-        id: Math.random().toString(36).substr(2, 9),
-        calories: finalCalories,
-        consumed: false
-      };
-      newMeals = [...state.meals, meal];
-    }
-
-    const newState = { ...state, meals: newMeals };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      let newMeals;
+      if (id) {
+        newMeals = prev.meals.map(m => m.id === id ? { ...m, ...mealData, calories: finalCalories } : m);
+      } else {
+        const meal: Meal = {
+          ...mealData,
+          id: Math.random().toString(36).substr(2, 9),
+          calories: finalCalories,
+          consumed: false
+        };
+        newMeals = [...prev.meals, meal];
+      }
+      const newState = { ...prev, meals: newMeals };
+      persist(newState);
+      return newState;
+    });
 
     setLoading(false);
     setIsModalOpen(false);
@@ -74,62 +75,69 @@ const App: React.FC = () => {
   };
 
   const copyDayMenu = async (toDay: number, week: number) => {
+    // Se for Segunda (0), copia da Sexta (4) da semana anterior (week - 1)
+    // Caso contrário, copia do dia anterior (toDay - 1) da mesma semana
     const fromDay = toDay === 0 ? 4 : toDay - 1;
-    
-    let sourceMeals = state.meals.filter(m => 
-      m.userId === activeUser && 
-      m.weekNumber === week && 
-      m.dayOfWeek === fromDay
-    );
+    const fromWeek = toDay === 0 ? week - 1 : week;
 
-    if (toDay === 0 && sourceMeals.length === 0 && week > 1) {
-      sourceMeals = state.meals.filter(m => 
-        m.userId === activeUser && 
-        m.weekNumber === week - 1 && 
-        m.dayOfWeek === fromDay
-      );
-    }
-
-    if (sourceMeals.length === 0) {
-      alert("Não encontramos nada registrado no dia anterior para copiar.");
+    if (fromWeek < 1) {
+      alert("Não há semana anterior para copiar.");
       return;
     }
 
-    const otherMeals = state.meals.filter(m => 
-      !(m.userId === activeUser && m.weekNumber === week && m.dayOfWeek === toDay)
-    );
+    setState(prev => {
+      const sourceMeals = prev.meals.filter(m => 
+        m.userId === activeUser && 
+        m.weekNumber === fromWeek && 
+        m.dayOfWeek === fromDay
+      );
 
-    const duplicatedMeals = sourceMeals.map(m => ({
-      ...m,
-      id: Math.random().toString(36).substr(2, 9),
-      dayOfWeek: toDay,
-      weekNumber: week,
-      consumed: false
-    }));
+      if (sourceMeals.length === 0) {
+        const fromLabel = toDay === 0 ? `Sexta da semana ${fromWeek}` : `o dia anterior`;
+        alert(`Não encontramos refeições em ${fromLabel} para copiar.`);
+        return prev;
+      }
 
-    const newState = {
-      ...state,
-      meals: [...otherMeals, ...duplicatedMeals]
-    };
-    
-    setState(newState);
-    await persist(newState);
-    alert(`${duplicatedMeals.length} refeições copiadas com sucesso!`);
+      // Remove as refeições que já existem no dia de destino
+      const otherMeals = prev.meals.filter(m => 
+        !(m.userId === activeUser && m.weekNumber === week && m.dayOfWeek === toDay)
+      );
+
+      const duplicatedMeals = sourceMeals.map(m => ({
+        ...m,
+        id: Math.random().toString(36).substr(2, 9),
+        dayOfWeek: toDay,
+        weekNumber: week,
+        consumed: false
+      }));
+
+      const newState = {
+        ...prev,
+        meals: [...otherMeals, ...duplicatedMeals]
+      };
+      
+      persist(newState);
+      return newState;
+    });
   };
 
   const removeMeal = async (id: string) => {
-    const newState = { ...state, meals: state.meals.filter(m => m.id !== id) };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const newState = { ...prev, meals: prev.meals.filter(m => m.id !== id) };
+      persist(newState);
+      return newState;
+    });
   };
 
   const toggleMealConsumed = async (id: string) => {
-    const newState = {
-      ...state,
-      meals: state.meals.map(m => m.id === id ? { ...m, consumed: !m.consumed } : m)
-    };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const newState = {
+        ...prev,
+        meals: prev.meals.map(m => m.id === id ? { ...m, consumed: !m.consumed } : m)
+      };
+      persist(newState);
+      return newState;
+    });
   };
 
   const handleEditMeal = (meal: Meal) => {
@@ -138,60 +146,72 @@ const App: React.FC = () => {
   };
 
   const toggleExercise = async (date: string) => {
-    const exists = state.exerciseLogs.find(l => l.date === date && l.userId === activeUser);
-    let newLogs;
-    if (exists) {
-      newLogs = state.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser));
-    } else {
-      newLogs = [...state.exerciseLogs, { userId: activeUser, date, completed: true }];
-    }
-    const newState = { ...state, exerciseLogs: newLogs };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const exists = prev.exerciseLogs.find(l => l.date === date && l.userId === activeUser);
+      let newLogs;
+      if (exists) {
+        newLogs = prev.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser));
+      } else {
+        newLogs = [...prev.exerciseLogs, { userId: activeUser, date, completed: true }];
+      }
+      const newState = { ...prev, exerciseLogs: newLogs };
+      persist(newState);
+      return newState;
+    });
   };
 
   const removeExercise = async (date: string) => {
-    const newState = { ...state, exerciseLogs: state.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const newState = { ...prev, exerciseLogs: prev.exerciseLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
+      persist(newState);
+      return newState;
+    });
   };
 
   const logWater = async (amount: number) => {
     const date = new Date().toISOString().split('T')[0];
-    const exists = state.waterLogs.find(l => l.date === date && l.userId === activeUser);
-    let newWaterLogs;
-    if (exists) {
-      newWaterLogs = state.waterLogs.map(l => 
-        l.date === date && l.userId === activeUser ? { ...l, amountMl: Math.max(0, l.amountMl + amount) } : l
-      );
-    } else {
-      newWaterLogs = [...state.waterLogs, { userId: activeUser, date, amountMl: Math.max(0, amount) }];
-    }
-    const newState = { ...state, waterLogs: newWaterLogs };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const exists = prev.waterLogs.find(l => l.date === date && l.userId === activeUser);
+      let newWaterLogs;
+      if (exists) {
+        newWaterLogs = prev.waterLogs.map(l => 
+          l.date === date && l.userId === activeUser ? { ...l, amountMl: Math.max(0, l.amountMl + amount) } : l
+        );
+      } else {
+        newWaterLogs = [...prev.waterLogs, { userId: activeUser, date, amountMl: Math.max(0, amount) }];
+      }
+      const newState = { ...prev, waterLogs: newWaterLogs };
+      persist(newState);
+      return newState;
+    });
   };
 
   const logWeight = async (weight: number) => {
     const date = new Date().toISOString().split('T')[0];
-    const newState = { ...state, weightLogs: [...state.weightLogs, { userId: activeUser, date, weight }] };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const newState = { ...prev, weightLogs: [...prev.weightLogs, { userId: activeUser, date, weight }] };
+      persist(newState);
+      return newState;
+    });
   };
 
   const removeWeight = async (date: string) => {
-    const newState = { ...state, weightLogs: state.weightLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const newState = { ...prev, weightLogs: prev.weightLogs.filter(l => !(l.date === date && l.userId === activeUser)) };
+      persist(newState);
+      return newState;
+    });
   };
 
   const toggleShoppingItem = async (id: string) => {
-    const newState = {
-      ...state,
-      shoppingLists: state.shoppingLists.map(item => item.id === id ? { ...item, bought: !item.bought } : item)
-    };
-    setState(newState);
-    await persist(newState);
+    setState(prev => {
+      const newState = {
+        ...prev,
+        shoppingLists: prev.shoppingLists.map(item => item.id === id ? { ...item, bought: !item.bought } : item)
+      };
+      persist(newState);
+      return newState;
+    });
   };
 
   const generateShoppingList = async (week: number) => {
@@ -199,20 +219,22 @@ const App: React.FC = () => {
     const weekMeals = state.meals.filter(m => m.weekNumber === week && m.userId === activeUser);
     const items = await suggestShoppingList(weekMeals);
     
-    const newItems: ShoppingItem[] = items.map(name => ({
-      id: Math.random().toString(36).substr(2, 9),
-      weekNumber: week,
-      userId: activeUser,
-      name,
-      bought: false
-    }));
+    setState(prev => {
+      const newItems: ShoppingItem[] = items.map(name => ({
+        id: Math.random().toString(36).substr(2, 9),
+        weekNumber: week,
+        userId: activeUser,
+        name,
+        bought: false
+      }));
 
-    const newState = {
-      ...state,
-      shoppingLists: [...state.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), ...newItems]
-    };
-    setState(newState);
-    await persist(newState);
+      const newState = {
+        ...prev,
+        shoppingLists: [...prev.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), ...newItems]
+      };
+      persist(newState);
+      return newState;
+    });
     setLoading(false);
   };
 
@@ -223,7 +245,7 @@ const App: React.FC = () => {
       <div className={`min-h-screen flex items-center justify-center ${bgColor}`}>
         <div className="text-center space-y-4">
           <div className={`w-12 h-12 border-4 ${activeUser === 'Thiago' ? 'border-sky-500' : 'border-rose-500'} border-t-transparent rounded-full animate-spin mx-auto`}></div>
-          <p className="text-slate-500 font-medium animate-pulse">Sincronizando NutriControl...</p>
+          <p className="text-slate-500 font-black animate-pulse uppercase text-xs tracking-widest">Sincronizando NutriControl...</p>
         </div>
       </div>
     );
@@ -234,25 +256,22 @@ const App: React.FC = () => {
       <header className="bg-white/80 backdrop-blur-md px-6 pt-8 pb-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">NutriControl</h1>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tighter">NutriControl</h1>
             {isSynced && (
-              <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-full text-[8px] font-bold uppercase animate-pulse">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                OK
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-full text-[8px] font-black uppercase animate-pulse">
+                Sincronizado
               </div>
             )}
           </div>
-          <p className="text-sm text-slate-500">Olá, <span className={`font-semibold ${activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600'}`}>{activeUser}</span></p>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Olá, <span className={`${activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600'}`}>{activeUser}</span></p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={() => setActiveUser(activeUser === 'Thiago' ? 'Marcela' : 'Thiago')}
-            className={`p-2 rounded-full transition-colors ${activeUser === 'Thiago' ? 'bg-sky-100 text-sky-600' : 'bg-rose-100 text-rose-600'}`}
+            className={`p-2 rounded-2xl transition-all shadow-sm ${activeUser === 'Thiago' ? 'bg-sky-100 text-sky-600' : 'bg-rose-100 text-rose-600'} active:scale-90`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </button>
         </div>
@@ -299,12 +318,12 @@ const App: React.FC = () => {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 py-4 flex justify-between items-center max-w-md mx-auto z-20">
-        <NavButton active={currentView === 'dashboard'} activeUser={activeUser} onClick={() => setCurrentView('dashboard')} icon={<DashboardIcon />} label="Home" />
+        <NavButton active={currentView === 'dashboard'} activeUser={activeUser} onClick={() => setCurrentView('dashboard')} icon={<DashboardIcon />} label="Hoje" />
         <NavButton active={currentView === 'table'} activeUser={activeUser} onClick={() => setCurrentView('table')} icon={<TableIcon />} label="Menu" />
         
         <button 
           onClick={() => { setEditingMeal(undefined); setIsModalOpen(true); }}
-          className={`${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white p-4 rounded-full shadow-lg -mt-12 border-4 border-slate-50 hover:opacity-90 transition-transform active:scale-95`}
+          className={`${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white p-4 rounded-3xl shadow-xl -mt-14 border-8 border-slate-50 hover:opacity-90 transition-all active:scale-90`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
@@ -331,9 +350,9 @@ const App: React.FC = () => {
 const NavButton = ({ active, activeUser, onClick, icon, label }: { active: boolean, activeUser: User, onClick: () => void, icon: React.ReactNode, label: string }) => {
   const activeColor = activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600';
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-colors ${active ? activeColor + ' font-medium' : 'text-slate-400'}`}>
+    <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all ${active ? activeColor + ' font-black scale-110' : 'text-slate-300'}`}>
       {icon}
-      <span className="text-[10px] uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest font-bold">{label}</span>
     </button>
   );
 };

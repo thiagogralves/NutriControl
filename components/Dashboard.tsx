@@ -12,9 +12,13 @@ interface Props {
 }
 
 const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercise, removeMeal, toggleMealConsumed }) => {
-  const today = new Date().toISOString().split('T')[0];
-  const dayIndex = new Date().getDay() - 1; // 0 (Mon) to 4 (Fri)
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const dayIndex = now.getDay() - 1; // 0 (Mon) to 4 (Fri)
   
+  // Format current date nicely
+  const formattedDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
   const dailyMeals = useMemo(() => 
     state.meals.filter(m => m.userId === activeUser && m.dayOfWeek === Math.max(0, Math.min(dayIndex, 4))),
     [state.meals, activeUser, dayIndex]
@@ -36,7 +40,10 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
     <div className="space-y-6 animate-fadeIn">
       {/* Daily Summary Card */}
       <div className={`bg-gradient-to-br ${userTheme} rounded-3xl p-6 text-white shadow-xl`}>
-        <h2 className="text-lg font-medium opacity-90">Hoje</h2>
+        <div className="flex justify-between items-start">
+          <h2 className="text-lg font-medium opacity-90">Hoje</h2>
+          <span className="text-[10px] font-bold uppercase tracking-wider opacity-70 bg-black/10 px-2 py-1 rounded-md">{formattedDate}</span>
+        </div>
         <div className="mt-4 flex justify-between items-end">
           <div>
             <span className="text-4xl font-bold">{dailyCalories}</span>

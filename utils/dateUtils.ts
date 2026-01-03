@@ -1,6 +1,16 @@
 
 export const BASE_DATE = new Date(2026, 0, 5); // 05/01/2026 é uma Segunda-feira
 
+export const getTodayStr = (): string => {
+  // Garante o formato YYYY-MM-DD no fuso de Brasília
+  return new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit' 
+  }).format(new Date());
+};
+
 export const getMealDate = (week: number, dayIdx: number): Date => {
   const targetDate = new Date(BASE_DATE);
   targetDate.setDate(BASE_DATE.getDate() + (week - 1) * 7 + dayIdx);
@@ -27,7 +37,7 @@ export const getCurrentWeekAndDay = () => {
   
   return { 
     week, 
-    day: day > 4 ? 4 : day // Garante que não passe de Sexta (4) para fins de tabela de refeição
+    day: day > 4 ? 4 : day 
   };
 };
 

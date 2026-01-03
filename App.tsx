@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, AppState, Meal, MealTime, ShoppingItem } from './types';
 import { estimateCalories, suggestShoppingList } from './geminiService';
 import { syncState, saveFullState } from './firebaseService';
+import { getTodayStr } from './utils/dateUtils';
 import Dashboard from './components/Dashboard';
 import WeeklyTable from './components/WeeklyTable';
 import ShoppingList from './components/ShoppingList';
@@ -42,13 +43,6 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Erro ao sincronizar com Firebase:", error);
     }
-  };
-
-  // Helper para pegar a data atual no formato YYYY-MM-DD no fuso local (Brasília)
-  const getLocalDate = () => {
-    const now = new Date();
-    // Ajuste simples para compensar fuso caso necessário, mas toLocaleDateString com en-CA já retorna YYYY-MM-DD local
-    return now.toLocaleDateString('en-CA');
   };
 
   const saveMeal = async (mealData: Omit<Meal, 'id' | 'consumed'>, id?: string) => {
@@ -173,7 +167,7 @@ const App: React.FC = () => {
   };
 
   const logWater = async (amount: number) => {
-    const date = getLocalDate();
+    const date = getTodayStr();
     setState(prev => {
       const exists = prev.waterLogs.find(l => l.date === date && l.userId === activeUser);
       let newWaterLogs;
@@ -199,7 +193,7 @@ const App: React.FC = () => {
   };
 
   const logWeight = async (weight: number) => {
-    const date = getLocalDate();
+    const date = getTodayStr();
     setState(prev => {
       const newState = { ...prev, weightLogs: [...prev.weightLogs, { userId: activeUser, date, weight }] };
       persist(newState);
@@ -250,10 +244,6 @@ const App: React.FC = () => {
     try {
       const items = await suggestShoppingList(weekMeals);
       
-      if (items.length === 0) {
-        alert("A IA não conseguiu identificar itens. Tente adicionar mais detalhes às refeições.");
-      }
-
       setState(prev => {
         const newItems: ShoppingItem[] = items.map(name => ({
           id: Math.random().toString(36).substr(2, 9),
@@ -265,14 +255,17 @@ const App: React.FC = () => {
 
         const newState = {
           ...prev,
-          shoppingLists: [...prev.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), ...newItems]
+          shoppingLists: [
+            ...prev.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), 
+            ...newItems
+          ]
         };
         persist(newState);
         return newState;
       });
     } catch (e) {
       console.error("Erro ao gerar lista:", e);
-      alert("Erro ao conectar com o serviço de IA. Verifique sua conexão.");
+      alert("Houve um problema ao gerar a lista de compras.");
     } finally {
       setLoading(false);
     }

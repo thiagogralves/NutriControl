@@ -29,21 +29,25 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
 };
 
 export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
-  if (meals.length === 0) return [];
+  if (!meals || meals.length === 0) return [];
   
   try {
     const mealList = meals.map(m => `${m.amount} de ${m.food}`).join(", ");
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `VOCÊ É UM ASSISTENTE DE NUTRIÇÃO. 
-      Instrução: Analise o cardápio semanal abaixo e crie uma lista de compras consolidada com os ingredientes necessários para preparar essas refeições. 
-      Seja prático: se a refeição é "Arroz com Feijão", inclua "Arroz" e "Feijão" na lista.
-      Não inclua as quantidades na lista de compras, apenas o nome do item.
-      Agrupe itens repetidos.
+      contents: `VOCÊ É UM ASSISTENTE DE NUTRIÇÃO ESPECIALISTA EM LISTA DE COMPRAS.
       
-      Cardápio: [${mealList}]
+      OBJETIVO: Transformar o cardápio semanal abaixo em uma lista de itens de supermercado.
       
-      Retorne um objeto JSON com uma propriedade 'items' contendo o array de strings.`,
+      REGRAS:
+      1. Se a refeição for um prato composto (ex: "Omelete com queijo"), inclua os ingredientes básicos (ex: "Ovos", "Queijo").
+      2. Se for uma fruta ou alimento direto (ex: "Banana"), inclua "Banana".
+      3. Consolide itens repetidos.
+      4. Retorne apenas o nome do produto, sem quantidades.
+      
+      CARDÁPIO DA SEMANA: [${mealList}]
+      
+      Retorne um objeto JSON no formato: {"items": ["Item 1", "Item 2"]}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

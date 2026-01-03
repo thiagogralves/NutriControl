@@ -35,7 +35,15 @@ export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
     const mealList = meals.map(m => `${m.amount} de ${m.food}`).join(", ");
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Com base nesta lista de alimentos consumidos na semana: [${mealList}], gere uma lista de compras consolidada para o supermercado. Agrupe itens semelhantes (ex: se houver ovos em várias refeições, coloque apenas 'Ovos'). Retorne um objeto JSON com uma propriedade 'items' contendo o array de strings.`,
+      contents: `VOCÊ É UM ASSISTENTE DE NUTRIÇÃO. 
+      Instrução: Analise o cardápio semanal abaixo e crie uma lista de compras consolidada com os ingredientes necessários para preparar essas refeições. 
+      Seja prático: se a refeição é "Arroz com Feijão", inclua "Arroz" e "Feijão" na lista.
+      Não inclua as quantidades na lista de compras, apenas o nome do item.
+      Agrupe itens repetidos.
+      
+      Cardápio: [${mealList}]
+      
+      Retorne um objeto JSON com uma propriedade 'items' contendo o array de strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -51,7 +59,8 @@ export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
       }
     });
     
-    const data = JSON.parse(response.text || '{"items": []}');
+    const text = response.text?.trim() || '{"items": []}';
+    const data = JSON.parse(text);
     return data.items || [];
   } catch (error) {
     console.error("Erro ao sugerir lista de compras:", error);

@@ -226,28 +226,56 @@ const App: React.FC = () => {
     });
   };
 
-  const generateShoppingList = async (week: number) => {
-    setLoading(true);
-    const weekMeals = state.meals.filter(m => m.weekNumber === week && m.userId === activeUser);
-    const items = await suggestShoppingList(weekMeals);
-    
+  const removeShoppingItem = async (id: string) => {
     setState(prev => {
-      const newItems: ShoppingItem[] = items.map(name => ({
-        id: Math.random().toString(36).substr(2, 9),
-        weekNumber: week,
-        userId: activeUser,
-        name,
-        bought: false
-      }));
-
       const newState = {
         ...prev,
-        shoppingLists: [...prev.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), ...newItems]
+        shoppingLists: prev.shoppingLists.filter(item => item.id !== id)
       };
       persist(newState);
       return newState;
     });
-    setLoading(false);
+  };
+
+  const generateShoppingList = async (week: number) => {
+    setLoading(true);
+    const weekMeals = state.meals.filter(m => m.weekNumber === week && m.userId === activeUser);
+    
+    if (weekMeals.length === 0) {
+      alert("Adicione refeições ao cardápio antes de gerar a lista.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const items = await suggestShoppingList(weekMeals);
+      
+      if (items.length === 0) {
+        alert("A IA não conseguiu identificar itens. Tente adicionar mais detalhes às refeições.");
+      }
+
+      setState(prev => {
+        const newItems: ShoppingItem[] = items.map(name => ({
+          id: Math.random().toString(36).substr(2, 9),
+          weekNumber: week,
+          userId: activeUser,
+          name,
+          bought: false
+        }));
+
+        const newState = {
+          ...prev,
+          shoppingLists: [...prev.shoppingLists.filter(i => !(i.weekNumber === week && i.userId === activeUser)), ...newItems]
+        };
+        persist(newState);
+        return newState;
+      });
+    } catch (e) {
+      console.error("Erro ao gerar lista:", e);
+      alert("Erro ao conectar com o serviço de IA. Verifique sua conexão.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const bgColor = activeUser === 'Thiago' ? 'bg-sky-50' : 'bg-rose-50';
@@ -315,6 +343,7 @@ const App: React.FC = () => {
             state={state} 
             activeUser={activeUser} 
             toggleShoppingItem={toggleShoppingItem}
+            removeShoppingItem={removeShoppingItem}
             generateShoppingList={generateShoppingList}
             loading={loading}
           />

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppState, User, MealTime, Meal } from '../types';
-import { getMealDateString } from '../utils/dateUtils';
+import { getMealDateString, mapTimeToCategory } from '../utils/dateUtils';
 
 interface Props {
   state: AppState;
@@ -13,20 +13,25 @@ interface Props {
 }
 
 const DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-const TIMES: MealTime[] = ['07:00', '12:00', '16:00', '20:00', '23:00'];
+const MEAL_CATEGORIES: MealTime[] = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'];
 
 const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMealConsumed, onEditMeal, copyDayMenu }) => {
   const [selectedWeek, setSelectedWeek] = useState(1);
-  
-  // Permite selecionar qualquer semana de 1 a 52 para planejamento
   const allPossibleWeeks = Array.from({ length: 52 }, (_, i) => i + 1);
 
+  // Agora buscamos por categoria mapeada, garantindo que horários antigos (ex: "08:00")
+  // sejam mostrados na categoria correta (ex: "Café da Manhã")
   const getMealsForSlot = (day: number, time: MealTime): Meal[] => 
-    state.meals.filter(m => m.userId === activeUser && m.weekNumber === selectedWeek && m.dayOfWeek === day && m.time === time);
+    state.meals.filter(m => 
+      m.userId === activeUser && 
+      m.weekNumber === selectedWeek && 
+      m.dayOfWeek === day && 
+      mapTimeToCategory(m.time) === time
+    );
 
   const accentColor = activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600';
   const accentBg = activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500';
-  const accentLight = activeUser === 'Thiago' ? 'bg-sky-50' : 'bg-rose-50';
+  const accentLight = activeUser === 'Thiago' ? 'bg-sky-100' : 'bg-rose-100';
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -62,7 +67,6 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
                       await copyDayMenu(dayIdx, selectedWeek);
                     }
                   }}
-                  title={`Copiar de ${fromWeekLabel}`}
                   className={`p-2 rounded-xl ${accentLight} ${accentColor} hover:opacity-80 transition-all flex items-center justify-center shrink-0 border border-current/10 shadow-sm active:scale-90`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,12 +83,12 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
               </div>
               
               <div className="grid gap-3">
-                {TIMES.map(time => {
-                  const meals = getMealsForSlot(dayIdx, time);
+                {MEAL_CATEGORIES.map(category => {
+                  const meals = getMealsForSlot(dayIdx, category);
                   return (
-                    <div key={time} className={`flex items-start gap-4 p-4 rounded-[2rem] border transition-all ${meals.length > 0 ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-50/50 border-dashed border-slate-200 opacity-60'}`}>
-                      <div className="w-10 text-center pt-1 shrink-0">
-                        <p className="text-[10px] font-bold text-slate-400">{time}</p>
+                    <div key={category} className={`flex items-start gap-4 p-4 rounded-[2rem] border transition-all ${meals.length > 0 ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-50/50 border-dashed border-slate-200 opacity-60'}`}>
+                      <div className="w-16 text-center pt-1 shrink-0">
+                        <p className="text-[9px] font-black text-slate-400 uppercase leading-tight">{category}</p>
                       </div>
                       <div className="flex-1 space-y-2">
                         {meals.length > 0 ? (
@@ -100,7 +104,11 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
                                   </svg>
                                 </button>
                                 <div>
-                                  <p className={`text-sm font-bold ${meal.consumed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{meal.food}</p>
+                                  <p className={`text-sm font-bold ${meal.consumed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                                    {meal.food}
+                                    {/* Opcional: Mostra o horário se for dado legado */}
+                                    {!MEAL_CATEGORIES.includes(meal.time as MealTime) && <span className="text-[8px] ml-1 text-slate-300 font-normal">({meal.time})</span>}
+                                  </p>
                                   <p className="text-[10px] text-slate-400 font-medium">{meal.amount}</p>
                                 </div>
                               </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, MealTime, Meal } from '../types';
-import { getMealDateString } from '../utils/dateUtils';
+import { getMealDateString, getCurrentWeekNumber, getTodayInBrasilia } from '../utils/dateUtils';
 
 interface Props {
   onClose: () => void;
@@ -14,13 +14,13 @@ interface Props {
 const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, initialData }) => {
   const [week, setWeek] = useState(1);
   const [day, setDay] = useState(0);
-  const [time, setTime] = useState<MealTime>('12:00');
+  const [time, setTime] = useState<MealTime>('Almoço');
   const [food, setFood] = useState('');
   const [amount, setAmount] = useState('');
   const [calories, setCalories] = useState<string>('');
 
   const DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
-  const TIMES: MealTime[] = ['07:00', '12:00', '16:00', '20:00', '23:00'];
+  const CATEGORIES: MealTime[] = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'];
 
   useEffect(() => {
     if (initialData) {
@@ -29,12 +29,24 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
       setTime(initialData.time);
       setFood(initialData.food);
       setAmount(initialData.amount);
-      setCalories(initialData.calories.toString());
+      setCalories(initialData.calories > 0 ? initialData.calories.toString() : '');
     } else {
-      setWeek(1);
-      const d = new Date().getDay() - 1;
-      setDay(d < 0 || d > 4 ? 0 : d);
-      setTime('12:00');
+      // Cálculo inteligente de semana e dia para novos cadastros
+      const currentWeek = getCurrentWeekNumber();
+      const today = getTodayInBrasilia();
+      
+      // getDay() retorna 0 para domingo, 1 para segunda...
+      // Nosso sistema usa 0 para segunda, 1 para terça...
+      let currentDayIdx = today.getDay() - 1;
+      
+      // Se for domingo (day -1) ou sábado (day 5), volta para segunda (0)
+      if (currentDayIdx < 0 || currentDayIdx > 4) {
+        currentDayIdx = 0;
+      }
+
+      setWeek(currentWeek);
+      setDay(currentDayIdx);
+      setTime('Almoço');
       setFood('');
       setAmount('');
       setCalories('');
@@ -97,16 +109,16 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Horário</label>
+            <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Categoria</label>
             <div className="flex flex-wrap gap-2">
-              {TIMES.map(t => (
+              {CATEGORIES.map(cat => (
                 <button 
-                  key={t}
+                  key={cat}
                   type="button"
-                  onClick={() => setTime(t)}
-                  className={`px-4 py-2.5 rounded-xl text-[10px] font-black transition-all ${time === t ? `${accentBg} text-white shadow-lg shadow-${activeUser === 'Thiago' ? 'sky' : 'rose'}-200` : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  onClick={() => setTime(cat)}
+                  className={`px-3 py-2 rounded-xl text-[9px] font-black transition-all ${time === cat ? `${accentBg} text-white shadow-lg` : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
                 >
-                  {t}
+                  {cat}
                 </button>
               ))}
             </div>
@@ -116,7 +128,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
             <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Alimento</label>
             <input 
               type="text" 
-              placeholder="Ex: 1 Pão com ovo" 
+              placeholder="Ex: Pão com ovo" 
               value={food}
               onChange={(e) => setFood(e.target.value)}
               className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all"
@@ -128,7 +140,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
               <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Peso/Qtde</label>
               <input 
                 type="text" 
-                placeholder="200g, 1 un" 
+                placeholder="Ex: 2 unidades" 
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all"

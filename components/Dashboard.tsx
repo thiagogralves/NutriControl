@@ -24,7 +24,7 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
       const mealDate = getMealDate(m.weekNumber, m.dayOfWeek);
       return m.userId === activeUser && isSameDay(mealDate, now);
     }),
-    [state.meals, activeUser, todayStr] // Usando string para dependência estável
+    [state.meals, activeUser, todayStr]
   );
 
   const dailyCalories = dailyMeals.reduce((acc, m) => m.consumed ? acc + m.calories : acc, 0);
@@ -65,15 +65,10 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Hidratação</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter text-center">Hidratação</p>
           <div className="flex flex-col gap-2 w-full">
             <div className="grid grid-cols-3 gap-1 w-full">
-              <button 
-                onClick={() => logWater(-100)} 
-                className="py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black border border-slate-300 active:scale-90"
-              >
-                -100
-              </button>
+              <button onClick={() => logWater(-100)} className="py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black border border-slate-300 active:scale-90">-100</button>
               <button onClick={() => logWater(100)} className={`py-2 ${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white rounded-xl text-[10px] font-black shadow-sm active:scale-90`}>+100</button>
               <button onClick={() => logWater(400)} className={`py-2 ${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white rounded-xl text-[10px] font-black shadow-sm active:scale-90`}>+400</button>
             </div>

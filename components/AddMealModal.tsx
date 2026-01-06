@@ -31,15 +31,10 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
       setAmount(initialData.amount);
       setCalories(initialData.calories > 0 ? initialData.calories.toString() : '');
     } else {
-      // Cálculo inteligente de semana e dia para novos cadastros
       const currentWeek = getCurrentWeekNumber();
       const today = getTodayInBrasilia();
-      
-      // getDay() retorna 0 para domingo, 1 para segunda...
-      // Nosso sistema usa 0 para segunda, 1 para terça...
       let currentDayIdx = today.getDay() - 1;
       
-      // Se for domingo (day -1) ou sábado (day 5), volta para segunda (0)
       if (currentDayIdx < 0 || currentDayIdx > 4) {
         currentDayIdx = 0;
       }
@@ -93,7 +88,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
                 max="52"
                 value={week} 
                 onChange={(e) => setWeek(Number(e.target.value))}
-                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all"
+                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none text-sm font-black transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -101,7 +96,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
               <select 
                 value={day} 
                 onChange={(e) => setDay(Number(e.target.value))}
-                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all appearance-none"
+                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none text-sm font-black transition-all appearance-none"
               >
                 {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
               </select>
@@ -131,7 +126,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
               placeholder="Ex: Pão com ovo" 
               value={food}
               onChange={(e) => setFood(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all"
+              className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none text-sm font-black transition-all"
             />
           </div>
 
@@ -143,7 +138,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
                 placeholder="Ex: 2 unidades" 
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all"
+                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none text-sm font-black transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -153,7 +148,7 @@ const AddMealModal: React.FC<Props> = ({ onClose, onAdd, activeUser, loading, in
                 placeholder="Auto IA" 
                 value={calories}
                 onChange={(e) => setCalories(e.target.value)}
-                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none focus:border-emerald-500/30 focus:bg-white text-sm font-black transition-all placeholder:italic placeholder:text-slate-200"
+                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-5 py-4 outline-none text-sm font-black transition-all"
               />
             </div>
           </div>

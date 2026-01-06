@@ -1,11 +1,18 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+declare var process: any;
+
 export const estimateCalories = async (food: string, amount: string): Promise<number> => {
   if (!food || !amount) return 0;
   
-  // Inicialização dentro da função para garantir o uso da chave atualizada
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("NutriControl: API_KEY não configurada no ambiente.");
+    return 0;
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   try {
     const response = await ai.models.generateContent({
@@ -24,7 +31,9 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
       }
     });
 
-    const text = response.text || '{"calories": 0}';
+    const text = response.text;
+    if (!text) return 0;
+    
     const data = JSON.parse(text);
     return typeof data.calories === 'number' ? data.calories : 0;
   } catch (error) {
@@ -36,7 +45,10 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
 export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
   if (!meals || meals.length === 0) return [];
   
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return [];
+
+  const ai = new GoogleGenAI({ apiKey });
   
   try {
     const mealList = meals.map(m => `${m.amount} de ${m.food}`).join(", ");
@@ -59,7 +71,9 @@ export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
       }
     });
     
-    const text = response.text || '{"items": []}';
+    const text = response.text;
+    if (!text) return [];
+    
     const data = JSON.parse(text);
     return data.items || [];
   } catch (error) {

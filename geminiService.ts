@@ -4,10 +4,21 @@ import { GoogleGenAI, Type } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const estimateCalories = async (food: string, amount: string): Promise<number> => {
+  if (!food || !amount) return 0;
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Estime as calorias para: ${amount} de ${food}. Baseie-se na tabela TACO ou fontes confiáveis. Retorne apenas o número inteiro.`,
+      contents: `VOCÊ É UM NUTRICIONISTA EXPERIENTE. 
+      Instrução: Estime as calorias para a seguinte refeição: "${amount} de ${food}". 
+      
+      REGRAS:
+      - Use a tabela TACO ou USDA como base.
+      - Retorne obrigatoriamente um objeto JSON com o campo "calories".
+      - "calories" deve ser um NÚMERO INTEIRO.
+      - Se o alimento for vago, dê a melhor estimativa baseada em porções médias.
+      
+      Exemplo de retorno: {"calories": 300}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -20,10 +31,11 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
       }
     });
 
-    const data = JSON.parse(response.text || '{"calories": 0}');
-    return data.calories || 0;
+    const text = response.text?.trim() || '{"calories": 0}';
+    const data = JSON.parse(text);
+    return typeof data.calories === 'number' ? data.calories : 0;
   } catch (error) {
-    console.error("Error estimating calories:", error);
+    console.error("Erro na estimativa de calorias via Gemini:", error);
     return 0;
   }
 };
@@ -35,19 +47,9 @@ export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
     const mealList = meals.map(m => `${m.amount} de ${m.food}`).join(", ");
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `VOCÊ É UM ASSISTENTE DE NUTRIÇÃO ESPECIALISTA EM LISTA DE COMPRAS.
-      
-      OBJETIVO: Transformar o cardápio semanal abaixo em uma lista de itens de supermercado.
-      
-      REGRAS:
-      1. Se a refeição for um prato composto (ex: "Omelete com queijo"), inclua os ingredientes básicos (ex: "Ovos", "Queijo").
-      2. Se for uma fruta ou alimento direto (ex: "Banana"), inclua "Banana".
-      3. Consolide itens repetidos.
-      4. Retorne apenas o nome do produto, sem quantidades.
-      
-      CARDÁPIO DA SEMANA: [${mealList}]
-      
-      Retorne um objeto JSON no formato: {"items": ["Item 1", "Item 2"]}`,
+      contents: `VOCÊ É UM ASSISTENTE DE NUTRIÇÃO. 
+      Crie uma lista de compras consolidada baseada nas seguintes refeições: [${mealList}].
+      Extraia apenas os ingredientes brutos necessários para preparar esses pratos. Agrupe itens repetidos.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

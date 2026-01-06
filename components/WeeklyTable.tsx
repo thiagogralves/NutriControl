@@ -19,14 +19,12 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
   const [selectedWeek, setSelectedWeek] = useState(1);
   const allPossibleWeeks = Array.from({ length: 52 }, (_, i) => i + 1);
 
-  // Agora buscamos por categoria mapeada, garantindo que horários antigos (ex: "08:00")
-  // sejam mostrados na categoria correta (ex: "Café da Manhã")
-  const getMealsForSlot = (day: number, time: MealTime): Meal[] => 
+  const getMealsForSlot = (day: number, category: MealTime): Meal[] => 
     state.meals.filter(m => 
       m.userId === activeUser && 
       m.weekNumber === selectedWeek && 
       m.dayOfWeek === day && 
-      mapTimeToCategory(m.time) === time
+      mapTimeToCategory(m.time) === category
     );
 
   const accentColor = activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600';
@@ -48,8 +46,6 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
 
       <div className="space-y-8 overflow-x-hidden pb-10">
         {DAYS.map((dayName, dayIdx) => {
-          const prevDayIdx = dayIdx === 0 ? 4 : dayIdx - 1;
-          const fromWeekLabel = dayIdx === 0 ? `Sexta da Sem. ${selectedWeek - 1}` : DAYS[prevDayIdx];
           const dateStr = getMealDateString(selectedWeek, dayIdx);
           
           return (
@@ -63,7 +59,7 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
                 
                 <button 
                   onClick={async () => {
-                    if (confirm(`Copiar cardápio de ${fromWeekLabel} para ${dayName}? Isso removerá o que você já registrou em ${dayName}.`)) {
+                    if (confirm(`Copiar cardápio do dia anterior para ${dayName}?`)) {
                       await copyDayMenu(dayIdx, selectedWeek);
                     }
                   }}
@@ -75,11 +71,6 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
                 </button>
 
                 <div className="h-px flex-1 bg-slate-100"></div>
-                <span className={`text-[10px] font-black ${accentColor} shrink-0 bg-white px-2 py-1 rounded-lg border border-slate-50`}>
-                  {state.meals
-                    .filter(m => m.userId === activeUser && m.weekNumber === selectedWeek && m.dayOfWeek === dayIdx)
-                    .reduce((acc, m) => acc + m.calories, 0)} kcal
-                </span>
               </div>
               
               <div className="grid gap-3">
@@ -104,19 +95,19 @@ const WeeklyTable: React.FC<Props> = ({ state, activeUser, removeMeal, toggleMea
                                   </svg>
                                 </button>
                                 <div>
-                                  <p className={`text-sm font-bold ${meal.consumed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                                    {meal.food}
-                                    {/* Opcional: Mostra o horário se for dado legado */}
-                                    {!MEAL_CATEGORIES.includes(meal.time as MealTime) && <span className="text-[8px] ml-1 text-slate-300 font-normal">({meal.time})</span>}
-                                  </p>
+                                  <p className={`text-sm font-bold ${meal.consumed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{meal.food}</p>
                                   <p className="text-[10px] text-slate-400 font-medium">{meal.amount}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] font-black ${meal.consumed ? accentColor : 'text-slate-400'}`}>{meal.calories} kcal</span>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => onEditMeal(meal)} className="p-1 text-slate-300 hover:text-emerald-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                  <button onClick={() => removeMeal(meal.id)} className="p-1 text-slate-300 hover:text-red-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                  <button onClick={() => onEditMeal(meal)} className="p-1 text-slate-300 hover:text-emerald-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                  </button>
+                                  <button onClick={() => removeMeal(meal.id)} className="p-1 text-slate-300 hover:text-red-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  </button>
                                 </div>
                               </div>
                             </div>

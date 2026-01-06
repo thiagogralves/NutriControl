@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { AppState, User, MealTime } from '../types';
-import { isSameDay, getMealDate, getTodayInBrasilia, mapTimeToCategory } from '../utils/dateUtils';
+import { isSameDay, getMealDate, getTodayInBrasilia, mapTimeToCategory, getTodayStr } from '../utils/dateUtils';
 
 interface Props {
   state: AppState;
@@ -16,14 +16,7 @@ const MEAL_ORDER: MealTime[] = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar'
 
 const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercise, removeMeal, toggleMealConsumed }) => {
   const now = getTodayInBrasilia();
-  
-  const todayStr = new Intl.DateTimeFormat('en-CA', { 
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit' 
-  }).format(new Date());
-  
+  const todayStr = getTodayStr();
   const formattedDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const dailyMeals = useMemo(() => 
@@ -31,7 +24,7 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
       const mealDate = getMealDate(m.weekNumber, m.dayOfWeek);
       return m.userId === activeUser && isSameDay(mealDate, now);
     }),
-    [state.meals, activeUser, now]
+    [state.meals, activeUser, todayStr] // Usando string para dependência estável
   );
 
   const dailyCalories = dailyMeals.reduce((acc, m) => m.consumed ? acc + m.calories : acc, 0);
@@ -48,7 +41,6 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Daily Summary Card */}
       <div className={`bg-gradient-to-br ${userTheme} rounded-3xl p-6 text-white shadow-xl transition-all duration-500`}>
         <div className="flex justify-between items-start">
           <h2 className="text-lg font-medium opacity-90">Hoje</h2>
@@ -66,7 +58,6 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center gap-3">
           <div className={`w-12 h-12 ${activeUser === 'Thiago' ? 'bg-sky-50 text-sky-500' : 'bg-rose-50 text-rose-500'} rounded-full flex items-center justify-center`}>
@@ -79,7 +70,7 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
             <div className="grid grid-cols-3 gap-1 w-full">
               <button 
                 onClick={() => logWater(-100)} 
-                className="py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black border border-slate-300 active:scale-90 hover:bg-slate-300 transition-colors"
+                className="py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black border border-slate-300 active:scale-90"
               >
                 -100
               </button>
@@ -104,20 +95,18 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
         </button>
       </div>
 
-      {/* Today's Meals */}
       <div>
         <h3 className="text-lg font-bold text-slate-800 mb-4 px-1">Refeições para hoje</h3>
         <div className="space-y-3">
           {dailyMeals.length === 0 ? (
             <div className="text-center py-10 bg-white/40 rounded-[2rem] border border-dashed border-slate-200">
                <p className="text-slate-400 text-sm italic">Nenhuma refeição para hoje.</p>
-               <p className="text-[10px] text-slate-300 mt-1 uppercase font-bold">Verifique o cardápio semanal</p>
             </div>
           ) : (
             dailyMeals
               .sort((a, b) => {
-                const catA = mapTimeToCategory(a.time) as MealTime;
-                const catB = mapTimeToCategory(b.time) as MealTime;
+                const catA = mapTimeToCategory(a.time);
+                const catB = mapTimeToCategory(b.time);
                 return MEAL_ORDER.indexOf(catA) - MEAL_ORDER.indexOf(catB);
               })
               .map(meal => {
@@ -139,7 +128,6 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${accentBg} ${accentColor}`}>
                             {categoryLabel}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium">{meal.amount}</span>
                         </div>
                       </div>
                     </div>

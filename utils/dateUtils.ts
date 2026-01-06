@@ -54,7 +54,11 @@ export const isSameDay = (date1: Date, date2: Date): boolean => {
 
 export const mapTimeToCategory = (time: string): MealTime => {
   const categories: MealTime[] = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'];
-  if (categories.includes(time as MealTime)) return time as MealTime;
+  
+  // Cast para garantir compatibilidade no build
+  if ((categories as string[]).includes(time)) {
+    return time as MealTime;
+  }
 
   const hourMatch = time.match(/^(\d{1,2})/);
   if (!hourMatch) return 'Lanche';

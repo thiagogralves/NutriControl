@@ -1,7 +1,7 @@
 
 export type User = 'Thiago' | 'Marcela';
 
-export type MealTime = '07:00' | '12:00' | '16:00' | '20:00' | '23:00';
+export type MealTime = 'Café da Manhã' | 'Almoço' | 'Lanche' | 'Jantar' | 'Ceia';
 
 export interface Meal {
   id: string;

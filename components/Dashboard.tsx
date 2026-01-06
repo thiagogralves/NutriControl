@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
-import { AppState, User } from '../types';
-import { isSameDay, getMealDate } from '../utils/dateUtils';
+import { AppState, User, MealTime } from '../types';
+import { isSameDay, getMealDate, getTodayInBrasilia, mapTimeToCategory } from '../utils/dateUtils';
 
 interface Props {
   state: AppState;
@@ -12,13 +12,18 @@ interface Props {
   toggleMealConsumed: (id: string) => void;
 }
 
+const MEAL_ORDER: MealTime[] = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'];
+
 const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercise, removeMeal, toggleMealConsumed }) => {
-  const now = new Date();
+  const now = getTodayInBrasilia();
   
-  // Usar toLocaleDateString com en-CA para garantir formato YYYY-MM-DD local (Brasília)
-  const todayStr = now.toLocaleDateString('en-CA');
+  const todayStr = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit' 
+  }).format(new Date());
   
-  // Format current date nicely
   const formattedDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   const dailyMeals = useMemo(() => 
@@ -26,7 +31,7 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
       const mealDate = getMealDate(m.weekNumber, m.dayOfWeek);
       return m.userId === activeUser && isSameDay(mealDate, now);
     }),
-    [state.meals, activeUser]
+    [state.meals, activeUser, now]
   );
 
   const dailyCalories = dailyMeals.reduce((acc, m) => m.consumed ? acc + m.calories : acc, 0);
@@ -71,9 +76,15 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
           </div>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Hidratação</p>
           <div className="flex flex-col gap-2 w-full">
-            <div className="flex gap-2 w-full">
-              <button onClick={() => logWater(100)} className={`flex-1 py-2 ${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white rounded-xl text-[10px] font-black shadow-sm`}>100ml</button>
-              <button onClick={() => logWater(400)} className={`flex-1 py-2 ${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white rounded-xl text-[10px] font-black shadow-sm`}>400ml</button>
+            <div className="grid grid-cols-3 gap-1 w-full">
+              <button 
+                onClick={() => logWater(-100)} 
+                className="py-2 bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black border border-slate-300 active:scale-90 hover:bg-slate-300 transition-colors"
+              >
+                -100
+              </button>
+              <button onClick={() => logWater(100)} className={`py-2 ${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white rounded-xl text-[10px] font-black shadow-sm active:scale-90`}>+100</button>
+              <button onClick={() => logWater(400)} className={`py-2 ${activeUser === 'Thiago' ? 'bg-sky-500' : 'bg-rose-500'} text-white rounded-xl text-[10px] font-black shadow-sm active:scale-90`}>+400</button>
             </div>
           </div>
         </div>
@@ -103,30 +114,41 @@ const Dashboard: React.FC<Props> = ({ state, activeUser, logWater, toggleExercis
                <p className="text-[10px] text-slate-300 mt-1 uppercase font-bold">Verifique o cardápio semanal</p>
             </div>
           ) : (
-            dailyMeals.sort((a,b) => a.time.localeCompare(b.time)).map(meal => (
-              <div key={meal.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between group transition-all">
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => toggleMealConsumed(meal.id)}
-                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${meal.consumed ? (activeUser === 'Thiago' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-rose-500 border-rose-500 text-white') : 'border-slate-200 text-transparent'}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  <div>
-                    <h4 className={`text-sm font-bold ${meal.consumed ? 'text-slate-400 line-through' : 'text-slate-700'} capitalize`}>{meal.food}</h4>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${accentBg} ${accentColor}`}>{meal.time}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">{meal.amount}</span>
+            dailyMeals
+              .sort((a, b) => {
+                const catA = mapTimeToCategory(a.time) as MealTime;
+                const catB = mapTimeToCategory(b.time) as MealTime;
+                return MEAL_ORDER.indexOf(catA) - MEAL_ORDER.indexOf(catB);
+              })
+              .map(meal => {
+                const categoryLabel = mapTimeToCategory(meal.time);
+                return (
+                  <div key={meal.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between group transition-all">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => toggleMealConsumed(meal.id)}
+                        className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${meal.consumed ? (activeUser === 'Thiago' ? 'bg-sky-500 border-sky-500 text-white' : 'bg-rose-500 border-rose-500 text-white') : 'border-slate-200 text-transparent'}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      <div>
+                        <h4 className={`text-sm font-bold ${meal.consumed ? 'text-slate-400 line-through' : 'text-slate-700'} capitalize`}>{meal.food}</h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${accentBg} ${accentColor}`}>
+                            {categoryLabel}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">{meal.amount}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-black ${meal.consumed ? accentColor : 'text-slate-400'}`}>{meal.calories} <span className="text-[10px]">kcal</span></span>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-black ${meal.consumed ? accentColor : 'text-slate-400'}`}>{meal.calories} <span className="text-[10px]">kcal</span></span>
-                </div>
-              </div>
-            ))
+                );
+              })
           )}
         </div>
       </div>

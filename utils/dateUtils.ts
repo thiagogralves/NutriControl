@@ -1,4 +1,6 @@
 
+import { MealTime } from '../types';
+
 export const BASE_DATE = new Date(2026, 0, 5); // 05/01/2026 é uma Segunda-feira
 
 export const getTodayInBrasilia = (): Date => {
@@ -9,7 +11,6 @@ export const getTodayInBrasilia = (): Date => {
 
 export const getCurrentWeekNumber = (): number => {
   const now = getTodayInBrasilia();
-  // Resetamos as horas para o cálculo ser baseado apenas em dias inteiros
   const start = new Date(BASE_DATE);
   start.setHours(0, 0, 0, 0);
   now.setHours(0, 0, 0, 0);
@@ -17,8 +18,6 @@ export const getCurrentWeekNumber = (): number => {
   const diffInMs = now.getTime() - start.getTime();
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
   
-  // Se for antes da data base, retorna semana 1. 
-  // Caso contrário, calcula: (dias / 7) + 1
   const weekNum = Math.floor(diffInDays / 7) + 1;
   return Math.max(1, weekNum);
 };
@@ -47,16 +46,15 @@ export const getMealDateString = (week: number, dayIdx: number): string => {
   return `${day}/${month}/${year}`;
 };
 
-export const isSameDay = (date1: Date, date2: Date) => {
+export const isSameDay = (date1: Date, date2: Date): boolean => {
   return date1.getFullYear() === date2.getFullYear() &&
          date1.getMonth() === date2.getMonth() &&
          date1.getDate() === date2.getDate();
 };
 
-// Mapeia horários legados para as novas categorias
-export const mapTimeToCategory = (time: string): string => {
-  const categories = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'];
-  if (categories.includes(time)) return time;
+export const mapTimeToCategory = (time: string): MealTime => {
+  const categories: MealTime[] = ['Café da Manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'];
+  if (categories.includes(time as MealTime)) return time as MealTime;
 
   const hourMatch = time.match(/^(\d{1,2})/);
   if (!hourMatch) return 'Lanche';

@@ -12,11 +12,10 @@ const addLog = (msg: string) => {
 };
 
 const getApiKey = () => {
-  // Tenta pegar de todas as fontes possíveis injetadas pelo Vite/Vercel
   const key = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY;
   
   if (!key || key === 'undefined' || key === 'null' || key === '') {
-    addLog("ERRO CRÍTICO: API_KEY não encontrada no build. Verifique o Vercel.");
+    addLog("ERRO: API_KEY não configurada no Vercel.");
     return null;
   }
   return key;
@@ -28,7 +27,7 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
   const apiKey = getApiKey();
   if (!apiKey) return 0;
 
-  addLog(`Solicitando calorias para: ${amount} de ${food}...`);
+  addLog(`IA: Estimando "${amount} de ${food}"...`);
   
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -49,12 +48,18 @@ export const estimateCalories = async (food: string, amount: string): Promise<nu
     });
 
     const data = JSON.parse(response.text || '{}');
-    const calories = typeof data.calories === 'number' ? data.calories : 0;
-    addLog(`Sucesso! Estimativa: ${calories} kcal.`);
+    const calories = data.calories || 0;
+    addLog(`IA: Sucesso (${calories} kcal).`);
     return calories;
   } catch (error: any) {
-    const errorMsg = error?.message || "Erro desconhecido na API";
-    addLog(`FALHA NA API: ${errorMsg}`);
+    let msg = error?.message || "";
+    if (msg.includes("leaked")) {
+      addLog("ALERTA CRÍTICO: Sua API Key foi BLOQUEADA pelo Google por vazamento. Você precisa gerar uma nova no Google AI Studio e atualizar no Vercel.");
+    } else if (msg.includes("API key not valid")) {
+      addLog("ERRO: API Key inválida. Verifique se copiou corretamente.");
+    } else {
+      addLog(`IA FALHOU: ${msg.substring(0, 50)}...`);
+    }
     return 0;
   }
 };
@@ -64,7 +69,7 @@ export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
   const apiKey = getApiKey();
   if (!apiKey) return [];
 
-  addLog("Gerando lista de compras via IA...");
+  addLog("IA: Gerando lista de compras...");
   try {
     const ai = new GoogleGenAI({ apiKey });
     const mealList = meals.map(m => `${m.amount} de ${m.food}`).join(", ");
@@ -86,10 +91,14 @@ export const suggestShoppingList = async (meals: any[]): Promise<string[]> => {
     
     const data = JSON.parse(response.text || '{}');
     const items = data.items || [];
-    addLog(`Lista gerada com ${items.length} itens.`);
+    addLog(`IA: Lista gerada (${items.length} itens).`);
     return items;
   } catch (error: any) {
-    addLog(`FALHA NA LISTA: ${error?.message || 'Erro desconhecido'}`);
+    if (error?.message?.includes("leaked")) {
+      addLog("ALERTA: Chave bloqueada por vazamento.");
+    } else {
+      addLog("IA: Falha ao gerar lista.");
+    }
     return [];
   }
 };

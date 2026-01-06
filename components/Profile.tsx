@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppState, User } from '../types';
 
 interface Props {
@@ -13,23 +13,10 @@ interface Props {
 
 const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, removeExercise, removeWaterLog }) => {
   const [newWeight, setNewWeight] = useState('');
-  const [logs, setLogs] = useState<string[]>([]);
-
-  // Atualiza os logs internos a cada 2 segundos
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLogs([...((window as any).appLogs || [])]);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
   
   const userWeights = useMemo(() => state.weightLogs
     .filter(l => l.userId === activeUser)
     .sort((a, b) => a.date.localeCompare(b.date)), [state.weightLogs, activeUser]);
-
-  const waterLogs = useMemo(() => state.waterLogs
-    .filter(l => l.userId === activeUser)
-    .sort((a, b) => a.date.localeCompare(b.date)), [state.waterLogs, activeUser]);
 
   const exerciseLogs = useMemo(() => state.exerciseLogs
     .filter(l => l.userId === activeUser && l.completed)
@@ -42,11 +29,6 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
   const accentText = activeUser === 'Thiago' ? 'text-sky-600' : 'text-rose-600';
   const accentStroke = activeUser === 'Thiago' ? '#0ea5e9' : '#f43f5e';
   const accentLight = activeUser === 'Thiago' ? 'bg-sky-50' : 'bg-rose-50';
-
-  const formatDateBR = (dateStr: string) => {
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}`;
-  };
 
   const weightChartData = useMemo(() => {
     if (userWeights.length < 2) return null;
@@ -99,34 +81,35 @@ const Profile: React.FC<Props> = ({ state, activeUser, logWeight, removeWeight, 
           <div className="h-32 flex items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 italic text-[10px] text-slate-300">Dados insuficientes</div>
         )}
         <div className="mt-6 flex gap-2">
-          <input type="number" step="0.1" value={newWeight} onChange={(e) => setNewWeight(e.target.value)} placeholder="0.0 kg" className="flex-1 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-black outline-none" />
-          <button onClick={() => { if(newWeight) { logWeight(parseFloat(newWeight)); setNewWeight(''); } }} className={`${accentColor} text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg`}>Salvar</button>
+          <input 
+            type="number" 
+            step="0.1" 
+            value={newWeight} 
+            onChange={(e) => setNewWeight(e.target.value)} 
+            placeholder="0.0 kg" 
+            className="flex-1 bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-black outline-none focus:ring-2 focus:ring-offset-2 transition-all" 
+          />
+          <button 
+            onClick={() => { if(newWeight) { logWeight(parseFloat(newWeight)); setNewWeight(''); } }} 
+            className={`${accentColor} text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-transform`}
+          >
+            Salvar
+          </button>
         </div>
       </div>
 
-      {/* SEÇÃO DE DEBUG PARA O CELULAR */}
-      <div className="bg-slate-900 p-6 rounded-[2.5rem] shadow-xl border border-white/10">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-black text-white text-[10px] uppercase tracking-widest flex items-center gap-2">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            Logs de Sistema (Debug Mobile)
-          </h3>
-          <button onClick={() => { (window as any).appLogs = []; setLogs([]); }} className="text-[8px] font-bold text-slate-400 uppercase border border-slate-700 px-2 py-1 rounded-lg">Limpar</button>
+      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+        <h3 className="font-black text-slate-700 text-[10px] uppercase tracking-widest mb-4">Metas & Saúde</h3>
+        <div className="space-y-3">
+          <div className={`p-4 ${accentLight} rounded-2xl flex items-center justify-between`}>
+            <span className="text-xs font-bold text-slate-600">Beber 2.5L de água</span>
+            <div className={`w-2 h-2 rounded-full ${accentColor} animate-pulse`}></div>
+          </div>
+          <div className={`p-4 ${accentLight} rounded-2xl flex items-center justify-between`}>
+            <span className="text-xs font-bold text-slate-600">Exercício 5x por semana</span>
+            <div className={`w-2 h-2 rounded-full ${accentColor}`}></div>
+          </div>
         </div>
-        <div className="space-y-2 max-h-40 overflow-y-auto hide-scrollbar font-mono">
-          {logs.length === 0 ? (
-            <p className="text-[9px] text-slate-500 italic">Nenhum evento registrado ainda...</p>
-          ) : (
-            logs.map((log, i) => (
-              <div key={i} className={`text-[9px] leading-relaxed border-b border-white/5 pb-1 ${log.includes('ERRO') || log.includes('FALHA') ? 'text-rose-400' : 'text-emerald-400'}`}>
-                {log}
-              </div>
-            ))
-          )}
-        </div>
-        <p className="mt-4 text-[8px] text-slate-500 font-bold uppercase tracking-tighter">
-          Se aparecer "API_KEY não encontrada", o problema é a configuração no Vercel.
-        </p>
       </div>
     </div>
   );
